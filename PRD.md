@@ -1,6 +1,12 @@
 # Product Requirements Document (PRD)
 
 Mobipay ↔ Promax Dash Integration — Middle-Layer API
+
+Version: 1.0.0  
+Date: 2025-10-01  
+Owner: Lee / Team  
+Status: Review Draft
+
 ---
 
 ## Table of Contents
@@ -150,6 +156,17 @@ Base URL: `https://api.yourdomain.com/api/v1/`
     "message": "Account found. Due amount computed."
   }
   ```
+ - Validation:
+   - `account` is required and trimmed; `type` defaults to `auto` and must be one of `mag|m3u|auto`.
+ - Error responses:
+   - 404 Not Found
+     ```json
+     { "status": "not_found", "message": "Account not found" }
+     ```
+   - 400 Bad Request
+     ```json
+     { "status": "error", "code": "invalid_type", "message": "type must be one of: mag, m3u, auto" }
+     ```
 
 2) Create trial (registration)
 - Method/Path: POST `/register`
@@ -172,6 +189,17 @@ Base URL: `https://api.yourdomain.com/api/v1/`
   ```json
   { "status": "ok", "promax_user_id": "5001", "username": "u_5001", "password": "p_abcd" }
   ```
+ - Validation:
+   - `email` is required and must be valid; `device_type` ∈ {`m3u`,`mag`}; `pack_id` must map to known bouquet/template.
+ - Error responses:
+   - 400 Bad Request (validation)
+     ```json
+     { "status": "error", "code": "invalid_input", "message": "email is required" }
+     ```
+   - 502 Bad Gateway (Promax upstream failure)
+     ```json
+     { "status": "error", "code": "upstream_failure", "message": "Promax unavailable" }
+     ```
 
 3) Payment callback (Mobipay → Middle layer)
 - Method/Path: POST `/payment/callback`
@@ -203,10 +231,31 @@ Base URL: `https://api.yourdomain.com/api/v1/`
     "receipt_url": "https://.../receipts/MOBI12345.pdf"
   }
   ```
+ - Validation:
+   - `transaction_id`, `account`, `amount`, `currency`, `paid_for`, and `timestamp` are required.
+   - Reject requests older than configured window (e.g., 5 minutes) based on `timestamp`.
+ - Error responses:
+   - 401 Unauthorized (invalid/missing signature)
+     ```json
+     { "status": "error", "code": "unauthorized", "message": "Invalid signature" }
+     ```
+   - 409 Conflict (duplicate transaction)
+     ```json
+     { "status": "error", "code": "duplicate_transaction", "message": "Already processed" }
+     ```
+   - 400/422 Validation error
+     ```json
+     { "status": "error", "code": "invalid_input", "message": "paid_for must be one of 1,3,6,12" }
+     ```
 
 4) Retrieve bouquets (for UI)
 - Method/Path: GET `/bouquets`
 - Behavior: proxy/cached Promax `action=bouquet&public=1` (cache ~1 hour).
+ - Error responses:
+   - 502 Bad Gateway
+     ```json
+     { "status": "error", "code": "upstream_failure", "message": "Promax unavailable" }
+     ```
 
 5) Admin endpoints (internal)
 - Examples: `GET /transactions/{id}`, `GET /clients/{id}`,
@@ -245,11 +294,32 @@ Tables:
 - Input validation & sanitation; receipt MIME/type/size limits; virus scan uploads if applicable.
 - Audit logging for all callbacks and Promax responses.
 
+HMAC signature specification (Mobipay → Middle layer):
+- Header example: `Authorization: HMAC key_id=<id>, algorithm=hmac-sha256, signature=<base64>, timestamp=<RFC3339>`
+- String-to-sign (concatenate with newline):
+  1) HTTP method (e.g., `POST`)
+  2) Request path + query (e.g., `/api/v1/payment/callback`)
+  3) Lowercased `content-type`
+  4) ISO8601/RFC3339 `timestamp`
+  5) SHA256 hex digest of the request body (empty string for multipart with canonicalization)
+- Signature = Base64(HMAC_SHA256(secret, string-to-sign))
+- Server checks: key lookup by `key_id`, timestamp freshness, constant-time signature compare.
+
 ## 11) Error Handling & Idempotency
 
 - Duplicate transaction_id: detect and return previous result without reapplying activation.
 - Promax failures (timeouts/5xx): exponential backoff (x3). If not resolved: persist as pending; background retries with alerts.
 - HTTP mappings: 200 success; 400 validation; 401 auth; 404 not found; 409 duplicate; 500 server error.
+
+Error response schema (all endpoints):
+```json
+{
+  "status": "error",
+  "code": "string_machine_code",
+  "message": "Human readable description",
+  "correlation_id": "uuid"
+}
+```
 
 ## 12) Monitoring & Observability
 
@@ -278,6 +348,19 @@ Tables:
 - Feature flags: allow_credit_wallet, allow_variable_amounts.
 - Secrets: Promax API key, email SMTP/API keys, storage credentials.
 - Environment/configuration should cover base URLs, caching TTL, retry policies.
+
+Example pricing config (environment file or DB seed):
+```json
+{
+  "currency": "USD",
+  "packages": [
+    { "months": 1,  "price": 9.99,  "pack_id_promax": 3,  "name": "Standard 1M" },
+    { "months": 3,  "price": 27.99, "pack_id_promax": 3,  "name": "Standard 3M" },
+    { "months": 6,  "price": 53.99, "pack_id_promax": 3,  "name": "Standard 6M" },
+    { "months": 12, "price": 99.99, "pack_id_promax": 3,  "name": "Standard 12M" }
+  ]
+}
+```
 
 ## 16) Implementation Plan & Timeline (indicative)
 
@@ -318,11 +401,16 @@ Tables:
 
 ## 21) Acceptance Criteria
 
-- Lookup returns accurate client info and computed due amounts for valid accounts.
-- Payment callback with valid signature activates/renews in Promax and returns receipt URL.
-- Duplicate callback with same `transaction_id` does not double-activate and returns the same outcome.
-- Trials can be created and credentials emailed successfully.
-- Admin can search a transaction and resend a receipt.
+- Lookup
+  - Given a valid account and type, when Mobipay calls `/lookup`, then the API returns 200 with client details and computed `due_amount` within 500ms p50.
+  - Given an unknown account, when Mobipay calls `/lookup`, then the API returns 404 with `status: not_found`.
+- Payment callback
+  - Given a valid signed callback for an existing client, when `/payment/callback` is called, then the system renews in Promax and returns 200 with `receipt_url`.
+  - Given a duplicate `transaction_id`, when `/payment/callback` is retried, then the system returns 409 or the original success without double activation.
+- Trials
+  - Given valid inputs, when `/register` is called, then the system creates a Promax trial and emails credentials.
+- Admin
+  - Given a transaction id, when admin queries `/transactions/{id}`, then the system returns stored details and can resend the receipt.
 
 ## 22) Open Questions
 
@@ -335,6 +423,12 @@ Tables:
 ## 23) Changelog
 
 - 1.0.0 (2025-10-01): Initial reorganized PRD; consolidated decisions, added TOC, clarified requirements, security, testing, and acceptance criteria.
+
+## Appendix D: Legacy draft (non-normative)
+
+The following content is retained for historical context only. It is not normative and may contain outdated endpoints or narrative notes.
+
+---
 
 Nice — thanks for the answers, Lee. I’ll deliver a comprehensive **Product Requirements Document (PRD)** for a **Middle-Layer API** that sits between **Mobipay** and your **Promax Dash** panel API, implements the funds/process flow you described, and supports the options you wanted (I’ll show options where you asked for choices and recommend the best approach).
 
