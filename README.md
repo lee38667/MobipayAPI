@@ -8,6 +8,8 @@ This is a TypeScript/Express implementation scaffold of the middle-layer API des
 - POST `/api/v1/register`
 - POST `/api/v1/payment/callback` (requires HMAC header)
 - GET `/api/v1/bouquets`
+- POST `/api/v1/subscription/extend`
+- POST `/api/v1/subscription/info`
 - GET `/health`
 
 ## Quick start
@@ -37,9 +39,16 @@ METHOD\nPATH\ncontent-type\ntimestamp\nsha256(body)
 ## Notes
 
 - Promax client uses `PROMAX_BASE_URL` and `PROMAX_API_KEY`.
+- `PROMAX_API_KEY` **must** be provided via environment variables (see `.env.example`); the application will refuse to call Promax without it.
 - Receipts are written as text files to `RECEIPTS_DIR` (default `./receipts`).
 - Email is printed to console.
 - Pricing is a simple in-memory table in `src/services/pricing.ts`.
+
+## Security
+
+- Never commit real API keys, HMAC secrets, or customer data to source control.
+- Store credentials only in your runtime environment or secure secret manager.
+- Rotate the `PROMAX_API_KEY` and `MOBIPAY_HMAC_SECRET` regularly and update your deployment configuration accordingly.
 
 ## Build & Run
 

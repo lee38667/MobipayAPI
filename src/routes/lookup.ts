@@ -12,7 +12,9 @@ export async function lookupHandler(req: Request, res: Response, next: NextFunct
     }
 
     const device = await promaxClient.deviceInfo({ account, type: type as any });
-    if (!device) return res.status(404).json({ status: 'not_found', message: 'Account not found' });
+    if (!device) {
+      return res.status(404).json({ status: 'invalid', message: 'username not available please register on www.jsiptv.africa' });
+    }
 
     const due_amount = pricing.computeDueAmount(device);
     return res.json({
