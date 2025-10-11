@@ -43,10 +43,23 @@ describe('Subscription routes', () => {
     it('rejects unsupported subscription length', async () => {
       const res = await request(app)
         .post('/api/v1/subscription/extend')
-        .send({ username: 'user', password: 'pass', sub: 3 });
+        .send({ username: 'user', password: 'pass', sub: 2 });
       expect(res.status).toBe(400);
       expect(res.body.code).toBe('invalid_subscription');
       expect(extendMock).not.toHaveBeenCalled();
+    });
+
+    it('accepts 3-month subscription extension', async () => {
+      const upstreamPayload = [{ status: 'true', messasge: 'M3U renew successful' }];
+      extendMock.mockResolvedValueOnce(upstreamPayload);
+
+      const res = await request(app)
+        .post('/api/v1/subscription/extend')
+        .send({ username: 'user', password: 'pass', sub: 3 });
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('ok');
+      expect(extendMock).toHaveBeenCalledWith({ username: 'user', password: 'pass', months: 3 });
     });
 
     it('returns upstream payload on success', async () => {
