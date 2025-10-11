@@ -11,5 +11,6 @@ export const pricing = {
     const row = defaultPricing.find(r => r.months === months);
     return row ? row.price : null;
   },
-  computeDueAmount(_device: any): number { return 9.99; }
+  computeDueAmount(_device: any): number { return 9.99; },
+  allowedDurations(): number[] { return defaultPricing.map(r => r.months); }
 };

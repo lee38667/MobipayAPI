@@ -1,9 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-
-function getSecretForKeyId(_keyId: string): string {
-  return process.env.MOBIPAY_HMAC_SECRET || '';
-}
+import { getHmacSecretForKeyId, getHmacSkewSeconds } from '../config';
 
 function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);
@@ -24,7 +21,7 @@ export function hmacAuthMiddleware(req: Request, res: Response, next: NextFuncti
     const timestamp = (parts['timestamp'] || '').replace(/^"|"$/g, '');
     if (!key_id || !signature || !timestamp) return res.status(401).json({ status: 'error', code: 'unauthorized', message: 'Invalid HMAC header' });
 
-    const secret = getSecretForKeyId(key_id);
+  const secret = getHmacSecretForKeyId(key_id) || '';
     if (!secret) return res.status(401).json({ status: 'error', code: 'unauthorized', message: 'Unknown key' });
 
     const method = req.method.toUpperCase();
@@ -36,7 +33,7 @@ export function hmacAuthMiddleware(req: Request, res: Response, next: NextFuncti
     const computed = crypto.createHmac('sha256', secret).update(stringToSign).digest('base64');
     if (!safeEqual(signature, computed)) return res.status(401).json({ status: 'error', code: 'unauthorized', message: 'Invalid signature' });
 
-    const skew = Number(process.env.HMAC_CLOCK_SKEW_SECONDS || 300);
+  const skew = getHmacSkewSeconds();
     const ts = Date.parse(timestamp);
     if (!Number.isFinite(ts)) return res.status(401).json({ status: 'error', code: 'unauthorized', message: 'Invalid timestamp' });
     const now = Date.now();

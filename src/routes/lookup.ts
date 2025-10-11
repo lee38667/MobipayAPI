@@ -22,7 +22,7 @@ export async function lookupHandler(req: Request, res: Response, next: NextFunct
       client: device,
       due_amount,
       currency: pricing.currency(),
-      allowed_subscriptions: [1, 3, 6, 12],
+      allowed_subscriptions: pricing.allowedDurations(),
       message: 'Account found. Due amount computed.'
     });
   } catch (err) {

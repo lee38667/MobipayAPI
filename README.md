@@ -40,9 +40,18 @@ METHOD\nPATH\ncontent-type\ntimestamp\nsha256(body)
 
 - Promax client uses `PROMAX_BASE_URL` and `PROMAX_API_KEY`.
 - `PROMAX_API_KEY` **must** be provided via environment variables (see `.env.example`); the application will refuse to call Promax without it.
-- Receipts are written as text files to `RECEIPTS_DIR` (default `./receipts`).
+- Optional Promax tuning variables: `PROMAX_TIMEOUT_MS` (defaults to 8000) and `PROMAX_BOUQUET_CACHE_TTL_MS` (defaults to 1 hour) control upstream timeouts and caching.
+- Receipts are generated as PDF files inside `RECEIPTS_DIR` (default `./receipts`).
 - Email is printed to console.
 - Pricing is a simple in-memory table in `src/services/pricing.ts`.
+
+## Production readiness checklist
+
+- Configure all required secrets in your environment (`PROMAX_API_KEY`, `MOBIPAY_HMAC_KEY_ID`, `MOBIPAY_HMAC_SECRET`, etc.). See `.env.example` for the complete list.
+- Ensure the server runs behind HTTPS and that Mobipay callbacks include valid HMAC headers.
+- Provide an email provider implementation in `src/services/email.ts` for sending real emails.
+- Persist transactions/clients in an external store if you need durability beyond in-memory storage.
+- Configure log aggregation and health monitoring prior to go-live.
 
 ## Security
 

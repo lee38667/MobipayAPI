@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { promaxClient } from '../services/promaxClient';
+import { pricing } from '../services/pricing';
 
-const allowedSubscriptions = new Set([1, 3, 6, 12]);
+const allowedSubscriptions = new Set(pricing.allowedDurations());
 
 type PromaxResponse = any;
 

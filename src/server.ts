@@ -1,6 +1,7 @@
 import app from './index';
+import { config } from './config';
 
-const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+const port = config.port;
 app.listen(port, () => {
   console.log(`Mobipay API listening on port ${port}`);
 });
