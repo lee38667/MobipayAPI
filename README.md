@@ -68,4 +68,22 @@ npm start
 
 ## Tests
 
-Tests are TBD; scaffold uses Jest and ts-jest.
+```bat
+npm test
+```
+
+All tests are passing (9 tests in 2 suites). See `tests/` directory for examples.
+
+## 📚 Documentation
+
+Complete API documentation is available in the `documentation/` folder:
+
+- **[API_DOCUMENTATION.md](./documentation/API_DOCUMENTATION.md)** - Comprehensive API reference with code examples in Node.js, Python, and PHP
+- **[POSTMAN_COLLECTION.md](./documentation/POSTMAN_COLLECTION.md)** - Pre-built Postman collection for quick testing with automatic HMAC signature generation
+- **[Documentation README](./documentation/README.md)** - Navigation guide for all documentation resources
+
+### Quick Links
+
+- **For Developers**: Start with [API_DOCUMENTATION.md](./documentation/API_DOCUMENTATION.md)
+- **For Testing**: Import the Postman collection from [POSTMAN_COLLECTION.md](./documentation/POSTMAN_COLLECTION.md)
+- **For Support**: Check the [Documentation README](./documentation/README.md) for troubleshooting
