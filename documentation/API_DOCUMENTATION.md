@@ -1056,8 +1056,8 @@ try {
 ### Documentation
 
 - **API Reference:** This document
-- **PRD:** See `PRD.md` in the repository for detailed requirements
 - **README:** See `README.md` for quick start and development guide
+- **PRD (if available):** Product requirements document provided by your business team
 
 ### Getting Help
 

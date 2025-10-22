@@ -1,0 +1,138 @@
+{
+  "info": {
+    "name": "MobipayAPI",
+    "description": "Complete API collection for MobipayAPI - Promax integration middleware",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": { "type": "noauth" },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "function generateHmacSignature(method, path, contentType, body, keyId, secret) {",
+          "  const timestamp = new Date().toISOString();",
+          "  const bodyHash = CryptoJS.SHA256(body).toString(CryptoJS.enc.Hex);",
+          "  const stringToSign = [method, path, contentType.toLowerCase(), timestamp, bodyHash].join('\\n');",
+          "  const signature = CryptoJS.HmacSHA256(stringToSign, secret).toString(CryptoJS.enc.Base64);",
+          "  const authHeader = `HMAC key_id=${keyId}, algorithm=hmac-sha256, signature=\\\"${signature}\\\", timestamp=\\\"${timestamp}\\\"`;",
+          "  return { authHeader, timestamp };",
+          "}",
+          "pm.environment.set('current_timestamp', new Date().toISOString());"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000/api/v1", "type": "string" },
+    { "key": "hmac_key_id", "value": "demo-key", "type": "string" },
+    { "key": "hmac_secret", "value": "demo-secret", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/../health"
+        },
+        "description": "Check if the API is running and healthy"
+      },
+      "response": []
+    },
+    {
+      "name": "1. Account Lookup",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/lookup?account=user123&type=auto"
+        },
+        "description": "Retrieve account information and compute due amount for subscription renewal."
+      }
+    },
+    {
+      "name": "2. Trial Registration",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"account_reference\": \"user_custom_id_001\",\n  \"email\": \"customer@example.com\",\n  \"fullname\": \"John Doe\",\n  \"device_type\": \"m3u\",\n  \"pack_id\": 3,\n  \"trial_days\": 7\n}" },
+        "url": { "raw": "{{base_url}}/register" },
+        "description": "Create a new trial account."
+      }
+    },
+    {
+      "name": "3. Payment Callback (HMAC)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const method = 'POST';",
+              "const path = '/api/v1/payment/callback';",
+              "const contentType = 'application/json';",
+              "const body = pm.request.body.raw;",
+              "const keyId = pm.collectionVariables.get('hmac_key_id');",
+              "const secret = pm.collectionVariables.get('hmac_secret');",
+              "const timestamp = new Date().toISOString();",
+              "const bodyHash = CryptoJS.SHA256(body).toString(CryptoJS.enc.Hex);",
+              "const stringToSign = [method, path, contentType.toLowerCase(), timestamp, bodyHash].join('\\n');",
+              "const signature = CryptoJS.HmacSHA256(stringToSign, secret).toString(CryptoJS.enc.Base64);",
+              "const authHeader = `HMAC key_id=${keyId}, algorithm=hmac-sha256, signature=\\\"${signature}\\\", timestamp=\\\"${timestamp}\\\"`;",
+              "pm.request.headers.add({ key: 'Authorization', value: authHeader });",
+              "const bodyJson = JSON.parse(body);",
+              "bodyJson.timestamp = timestamp;",
+              "pm.request.body.raw = JSON.stringify(bodyJson, null, 2);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transaction_id\": \"MOBI{{$timestamp}}\",\n  \"account\": \"user123\",\n  \"amount\": 9.99,\n  \"currency\": \"USD\",\n  \"paid_for\": 1,\n  \"timestamp\": \"{{current_timestamp}}\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/payment/callback" },
+        "description": "Process payment and activate/renew subscription."
+      }
+    },
+    {
+      "name": "4. Get Bouquets",
+      "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/bouquets" }, "description": "Retrieve available bouquets." }
+    },
+    {
+      "name": "5. Subscription Extension",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"username\": \"user123\",\n  \"password\": \"userpass\",\n  \"sub\": 12\n}" },
+        "url": { "raw": "{{base_url}}/subscription/extend" },
+        "description": "Extend an existing subscription."
+      }
+    },
+    {
+      "name": "6. Client Information",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"username\": \"user123\",\n  \"password\": \"userpass\"\n}" },
+        "url": { "raw": "{{base_url}}/subscription/info" },
+        "description": "Retrieve client info."
+      }
+    },
+    {
+      "name": "7. Admin - Get Transaction",
+      "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/admin/transactions/MOBI12345" }, "description": "Get a transaction by ID." }
+    },
+    {
+      "name": "8. Admin - Resend Receipt",
+      "request": { "method": "POST", "header": [], "url": { "raw": "{{base_url}}/admin/clients/user123/resend-receipt" }, "description": "Resend a receipt to a client." }
+    }
+  ]
+}

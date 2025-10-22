@@ -578,20 +578,19 @@ If you get `400 Bad Request`:
 5. Paste the JSON
 6. Click **Import**
 
-### Method 2: Save as File
-1. Save the JSON to a file: `MobipayAPI.postman_collection.json`
-2. Open Postman
-3. Click **Import** button
-4. Drag and drop the file
-5. Click **Import**
+### Method 2: Import the bundled JSON file
+1. Open Postman
+2. Click **Import** button
+3. Drag and drop the bundled file: `documentation/MobipayAPI.postman_collection.json`
+4. Click **Import**
 
 ---
 
 ## Additional Resources
 
 - **API Documentation**: See `API_DOCUMENTATION.md`
-- **PRD**: See `PRD.md` for requirements
-- **README**: See `README.md` for setup guide
+- **README**: See `../README.md` for setup guide
+- **PRD (if available)**: Product requirements document, if provided by your team
 
 ---
 
